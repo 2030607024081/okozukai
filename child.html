@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お小遣い帳 - GAS版</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center">
+        <div class="bg-emerald-600 text-white rounded-xl py-3 mb-6 font-bold flex items-center justify-center gap-2">
+            <span>お小遣い帳 - GAS版</span>
+        </div>
+
+        <div class="bg-emerald-50 rounded-xl p-6 mb-6 border border-emerald-100">
+            <p class="text-xs text-slate-500 font-bold mb-1">あなたのお小遣い残高</p>
+            <p class="text-4xl font-black text-slate-800"><span id="balance-view">読み込み中...</span> 円</p>
+        </div>
+
+        <div class="text-left border-t border-slate-100 pt-4">
+            <h3 class="font-bold text-slate-700 text-sm mb-3">これまでの履歴</h3>
+            <div id="history-list" class="space-y-2 max-h-60 overflow-y-auto text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // 親画面と同じ、点火したガスコンロのURLを埋め込みました！
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyHTzNj4qaURwh_LQkUqwH_DmXUYBx7R4ZD3cy58zA5JjegkpXCqN9fAcnnEVlvaOhp/exec"; 
+
+        let currentBalance = 0;
+        let currentHistory = [];
+
+        // Googleからデータを読み込む関数（親画面と全く同じ）
+        async function loadData() {
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "load" })
+                });
+                const data = await response.json();
+                currentBalance = data.balance || 0;
+                currentHistory = data.history || [];
+                updateDOM();
+            } catch (error) {
+                console.error("読み込み失敗:", error);
+                document.getElementById('balance-view').innerText = "エラー";
+            }
+        }
+
+        function updateDOM() {
+            document.getElementById('balance-view').innerText = currentBalance.toLocaleString();
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            if (currentHistory.length === 0) {
+                historyList.innerHTML = '<p class="text-slate-400 text-xs italic">履歴はありません</p>';
+                return;
+            }
+
+            currentHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `flex justify-between p-2 rounded-lg ${item.amount > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`;
+                div.innerHTML = `
+                    <div>
+                        <span class="font-bold">${item.amount > 0 ? '+' : ''}${item.amount}円</span>
+                        <span class="text-xs text-slate-500 ml-2">(${item.reason || '理由なし'})</span>
+                    </div>
+                    <span class="text-xs text-slate-400">${item.date}</span>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        // 起動時にデータを読み込む
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            // 3秒に1回、自動でGoogleに「親がボタン押した？」と確認しにいく（オンボロイドに優しい省エネ設計）
+            setInterval(loadData, 3000);
+        });
+    </script>
+</body>
+</html>

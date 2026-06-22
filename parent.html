@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お小遣い管理 - GAS版</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center">
+        <div class="bg-indigo-600 text-white rounded-xl py-3 mb-6 font-bold flex items-center justify-center gap-2">
+            <span>お小遣い管理 - GAS版</span>
+        </div>
+
+        <div class="bg-indigo-50 rounded-xl p-6 mb-6 border border-indigo-100">
+            <p class="text-xs text-slate-500 font-bold mb-1">現在の子どもの残高</p>
+            <p class="text-4xl font-black text-slate-800"><span id="balance-view">読み込み中...</span> 円</p>
+        </div>
+
+        <div class="text-left space-y-4 mb-6">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">金額（円）</label>
+                <input type="number" id="amount-input" placeholder="例: 500" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-medium">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">理由・つかいみち</label>
+                <input type="text" id="reason-input" placeholder="例: お手伝い、おやつ代など" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <button onclick="handleTransaction(1)" class="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer">
+                ➕ 増やす
+            </button>
+            <button onclick="handleTransaction(-1)" class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer">
+                ➖ 減らす
+            </button>
+        </div>
+
+        <div class="text-left border-t border-slate-100 pt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-slate-700 text-sm">操作履歴</h3>
+                <button onclick="clearHistory()" class="text-xs bg-slate-500 hover:bg-slate-600 text-white px-2 py-1 rounded font-medium cursor-pointer">履歴クリア</button>
+            </div>
+            <div id="history-list" class="space-y-2 max-h-40 overflow-y-auto text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // 先ほど発行してもらったガスコンロのURLを直接埋め込みました！
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyHTzNj4qaURwh_LQkUqwH_DmXUYBx7R4ZD3cy58zA5JjegkpXCqN9fAcnnEVlvaOhp/exec"; 
+
+        let currentBalance = 0;
+        let currentHistory = [];
+
+        // Googleからデータを読み込む関数
+        async function loadData() {
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "load" })
+                });
+                const data = await response.json();
+                currentBalance = data.balance || 0;
+                currentHistory = data.history || [];
+                updateDOM();
+            } catch (error) {
+                console.error("読み込み失敗:", error);
+                document.getElementById('balance-view').innerText = "エラー";
+            }
+        }
+
+        function updateDOM() {
+            document.getElementById('balance-view').innerText = currentBalance.toLocaleString();
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            if (currentHistory.length === 0) {
+                historyList.innerHTML = '<p class="text-slate-400 text-xs italic">履歴はありません</p>';
+                return;
+            }
+
+            currentHistory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `flex justify-between p-2 rounded-lg ${item.amount > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`;
+                div.innerHTML = `
+                    <div>
+                        <span class="font-bold">${item.amount > 0 ? '+' : ''}${item.amount}円</span>
+                        <span class="text-xs text-slate-500 ml-2">(${item.reason || '理由なし'})</span>
+                    </div>
+                    <span class="text-xs text-slate-400">${item.date}</span>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        // お小遣いを増減させてGoogleに送る関数
+        async function handleTransaction(direction) {
+            const amountInput = document.getElementById('amount-input');
+            const reasonInput = document.getElementById('reason-input');
+            const amount = parseInt(amountInput.value);
+            const reason = reasonInput.value.trim();
+
+            if (isNaN(amount) || amount <= 0) {
+                alert("正しい金額を入力してください！");
+                return;
+            }
+
+            const changeAmount = amount * direction;
+            const newBalance = currentBalance + changeAmount;
+            const now = new Date();
+            const newLog = {
+                amount: changeAmount,
+                reason: reason || (direction === 1 ? "お小遣い追加" : "お小遣い減少"),
+                date: `${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+            };
+
+            const newHistory = [newLog, ...currentHistory];
+
+            // 画面を先に更新して体感速度を爆速にする（オンボロイド対策）
+            currentBalance = newBalance;
+            currentHistory = newHistory;
+            updateDOM();
+            amountInput.value = '';
+            reasonInput.value = '';
+
+            // 裏でGoogleにデータを送信
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "update",
+                        balance: newBalance,
+                        history: newHistory
+                    })
+                });
+            } catch (error) {
+                alert("Googleへの保存に失敗しました。電波が良い場所で試してください！");
+                console.error(error);
+            }
+        }
+
+        // 履歴クリア
+        async function clearHistory() {
+            if (!confirm("履歴をすべて消去しますか？（残高はそのままです）")) return;
+
+            currentHistory = [];
+            updateDOM();
+
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "update",
+                        balance: currentBalance,
+                        history: []
+                    })
+                });
+            } catch (error) {
+                alert("クリアデータの送信に失敗しました");
+            }
+        }
+
+        // 起動時にデータを読み込む
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            // 定期的にGoogleを見に行く（3秒に1回自動更新、擬似リアルタイム同期）
+            setInterval(loadData, 3000);
+        });
+    </script>
+</body>
+</html>
