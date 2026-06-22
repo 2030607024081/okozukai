@@ -1,6 +1,6 @@
-# okozukai
-子供
+# お小遣いシステム
+# 子供
 https://2030607024081.github.io/okozukai/child.html
 
-親
+# 親
 https://2030607024081.github.io/okozukai/parent.html
