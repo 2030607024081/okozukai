@@ -18,6 +18,12 @@
             <p class="text-4xl font-black text-slate-800"><span id="balance-view">読み込み中...</span> 円</p>
         </div>
 
+        <div class="mb-4 text-left">
+            <label class="block text-xs font-bold text-slate-500 mb-1">直近よく使う金額（クリックで入力）</label>
+            <div id="quick-amount-tags" class="flex flex-wrap gap-2 min-h-8">
+                </div>
+        </div>
+
         <div class="text-left space-y-4 mb-6">
             <div>
                 <label class="block text-xs font-bold text-slate-500 mb-1">金額（円）</label>
@@ -38,6 +44,18 @@
             </button>
         </div>
 
+        <div class="text-left border-t border-slate-100 pt-4 mb-6">
+            <h3 class="font-bold text-slate-700 text-sm mb-2">📅 毎月の定期送金設定</h3>
+            <div class="flex gap-2 items-center text-sm">
+                <span class="text-slate-500">毎月</span>
+                <input type="number" id="auto-day" placeholder="1" min="1" max="31" class="w-14 px-2 py-1 rounded border border-slate-200 text-center font-bold">
+                <span class="text-slate-500">日に</span>
+                <input type="number" id="auto-amount" placeholder="500" class="w-20 px-2 py-1 rounded border border-slate-200 text-center font-bold">
+                <span class="text-slate-500">円</span>
+                <button onclick="saveAutoConfig()" class="bg-indigo-500 text-white px-3 py-1 rounded font-bold hover:bg-indigo-600 cursor-pointer ml-auto text-xs">保存</button>
+            </div>
+        </div>
+
         <div class="text-left border-t border-slate-100 pt-4">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="font-bold text-slate-700 text-sm">操作履歴</h3>
@@ -53,6 +71,7 @@
 
         let currentBalance = 0;
         let currentHistory = [];
+        let quickAmounts = JSON.parse(localStorage.getItem('quick_amounts') || '[]');
 
         // Googleからデータを読み込む関数
         async function loadData() {
@@ -64,6 +83,13 @@
                 const data = await response.json();
                 currentBalance = data.balance || 0;
                 currentHistory = data.history || [];
+                
+                // 定期設定を表示に反映（未入力の場合のみ）
+                if (data.autoConfig && !document.getElementById('auto-day').value) {
+                    document.getElementById('auto-day').value = data.autoConfig.day || '';
+                    document.getElementById('auto-amount').value = data.autoConfig.amount || '';
+                }
+                
                 updateDOM();
             } catch (error) {
                 console.error("読み込み失敗:", error);
@@ -78,21 +104,66 @@
             
             if (currentHistory.length === 0) {
                 historyList.innerHTML = '<p class="text-slate-400 text-xs italic">履歴はありません</p>';
-                return;
+            } else {
+                currentHistory.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `flex justify-between p-2 rounded-lg ${item.amount > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`;
+                    div.innerHTML = `
+                        <div>
+                            <span class="font-bold">${item.amount > 0 ? '+' : ''}${item.amount}円</span>
+                            <span class="text-xs text-slate-500 ml-2">(${item.reason || '理由なし'})</span>
+                        </div>
+                        <span class="text-xs text-slate-400">${item.date}</span>
+                    `;
+                    historyList.appendChild(div);
+                });
             }
 
-            currentHistory.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `flex justify-between p-2 rounded-lg ${item.amount > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`;
-                div.innerHTML = `
-                    <div>
-                        <span class="font-bold">${item.amount > 0 ? '+' : ''}${item.amount}円</span>
-                        <span class="text-xs text-slate-500 ml-2">(${item.reason || '理由なし'})</span>
-                    </div>
-                    <span class="text-xs text-slate-400">${item.date}</span>
-                `;
-                historyList.appendChild(div);
-            });
+            // クイック金額ボタンの更新
+            const tagsContainer = document.getElementById('quick-amount-tags');
+            tagsContainer.innerHTML = '';
+            if (quickAmounts.length === 0) {
+                tagsContainer.innerHTML = '<p class="text-slate-400 text-xs italic pt-1">まだ履歴がありません</p>';
+            } else {
+                quickAmounts.forEach(amt => {
+                    const btn = document.createElement('button');
+                    btn.className = "bg-slate-200 hover:bg-indigo-100 text-slate-700 font-bold px-3 py-1 rounded-full text-xs transition-all cursor-pointer";
+                    btn.innerText = `${amt}円`;
+                    btn.onclick = () => {
+                        document.getElementById('amount-input').value = amt;
+                    };
+                    tagsContainer.appendChild(btn);
+                });
+            }
+        }
+
+        // 金額を直近履歴に追加する処理（重複なし、最大5個）
+        function addQuickAmount(amount) {
+            quickAmounts = quickAmounts.filter(a => a !== amount);
+            quickAmounts.unshift(amount);
+            if (quickAmounts.length > 5) {
+                quickAmounts.pop();
+            }
+            localStorage.setItem('quick_amounts', JSON.stringify(quickAmounts));
+        }
+
+        // 定期送金設定をGASに保存する関数
+        async function saveAutoConfig() {
+            const day = document.getElementById('auto-day').value;
+            const amount = document.getElementById('auto-amount').value;
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ 
+                        action: "saveAutoConfig", 
+                        autoConfig: { day: day, amount: amount } 
+                    })
+                });
+                alert("定期送金設定を保存したで！");
+            } catch (error) {
+                alert("設定の保存に失敗しました");
+                console.error(error);
+            }
         }
 
         // お小遣いを増減させてGoogleに送る関数
@@ -107,6 +178,9 @@
                 return;
             }
 
+            // 直近履歴に金額を追加
+            addQuickAmount(amount);
+
             const changeAmount = amount * direction;
             const newBalance = currentBalance + changeAmount;
             const now = new Date();
@@ -118,14 +192,12 @@
 
             const newHistory = [newLog, ...currentHistory];
 
-            // 画面を先に更新して体感速度を爆速にする（オンボロイド対策）
             currentBalance = newBalance;
             currentHistory = newHistory;
             updateDOM();
             amountInput.value = '';
             reasonInput.value = '';
 
-            // 裏でGoogleにデータを送信
             try {
                 await fetch(GAS_URL, {
                     method: "POST",
@@ -165,7 +237,6 @@
         // 起動時にデータを読み込む
         window.addEventListener('DOMContentLoaded', () => {
             loadData();
-            // 定期的にGoogleを見に行く（3秒に1回自動更新、擬似リアルタイム同期）
             setInterval(loadData, 3000);
         });
     </script>
