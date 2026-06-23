@@ -1,7 +1,40 @@
-<h1>Child URL</h1>
-<a href="https://2030607024081.github.io/okozukai/child.html" class="no-line">Child</a>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お小遣い管理 - ポータル</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
 
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm text-center">
+        <div class="bg-indigo-600 text-white rounded-xl py-3 mb-8 font-bold text-lg shadow-md">
+            ポータルサイト
+        </div>
 
-<h1>Parent URL</h1>
-<a href="https://2030607024081.github.io/okozukai/parent.html
-" class="no-line">Parent</a>
+        <div class="space-y-6">
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 shadow-sm">
+                <h1 class="text-sm font-bold text-emerald-700 mb-2">子ども用画面（表示専用）</h1>
+                <a href="https://2030607024081.github.io/okozukai/child.html" 
+                   class="block bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold py-3 rounded-xl shadow-md transition-all text-center cursor-pointer no-underline">
+                    Child.html
+                </a>
+            </div>
+
+            <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
+                <h1 class="text-sm font-bold text-indigo-700 mb-2">親用画面（管理・設定）</h1>
+                <a href="https://2030607024081.github.io/okozukai/parent.html" 
+                   class="block bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-bold py-3 rounded-xl shadow-md transition-all text-center cursor-pointer no-underline">
+                    Parent.html
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-8 text-xs text-slate-400 italic">
+            GAS & GitHub Pages Running
+        </div>
+    </div>
+
+</body>
+</html>
