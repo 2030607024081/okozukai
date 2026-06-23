@@ -1,5 +1,5 @@
-# 子供
+# child URL
 https://2030607024081.github.io/okozukai/child.html
 
-# 親
+# parent URL
 https://2030607024081.github.io/okozukai/parent.html
